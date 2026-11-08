@@ -86,6 +86,17 @@ dsh-penpot-ai-kit-plugin: gate closed (0 mcp__penpot__* tools; config ~/.dsh/pen
 dsh-penpot-ai-kit-plugin: serving only "penpot-setup" until a Penpot MCP config exists at ...
 ```
 
+### 从旧包名升级（v0.5.1-dsh.1 / dsh.2）
+
+早期版本的包名是 `dsh-penpot-ai-kit`，与仓库名不一致；两者会作为两个 bundle 同时存在，必须先移除旧包：
+
+```sh
+dsh plugin remove dsh-penpot-ai-kit
+dsh plugin add github:PeiJingbobo/dsh-penpot-ai-kit-plugin
+```
+
+`v0.5.1-dsh.3` 起包名、bundle row 与 tarball 统一为 `dsh-penpot-ai-kit-plugin`。
+
 ## 配置
 
 默认路径 `~/.dsh/penpot-ai-kit/config.json`（`PENPOT_AI_KIT_CONFIG` 可覆盖为绝对路径），权限必须是 `0600`（含 token；启动时权限过宽只告警，不阻断）：
