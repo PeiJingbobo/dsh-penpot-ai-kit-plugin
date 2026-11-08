@@ -4,10 +4,10 @@
 [![Upstream](https://img.shields.io/badge/upstream-penpot%2Fpenpot--ai--kit-8b5cf6)](https://github.com/penpot/penpot-ai-kit)
 [![License](https://img.shields.io/badge/license-MIT%20(code)%20%2F%20CC--BY--4.0%20(content)-green)](#license)
 
-把 [penpot/penpot-ai-kit](https://github.com/penpot/penpot-ai-kit) 的 14 个设计技能做成 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的原生 skill bundle，并加了一层 **MCP 门禁**：
+把 [penpot/penpot-ai-kit](https://github.com/penpot/penpot-ai-kit) 的 14 个设计技能做成 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的原生 skill bundle，另外补两个本地技能（`penpot-setup`、`penpot-polish`），并加了两层门禁：**MCP 门禁** 与 **工作流门禁**：
 
 > 没有可用的 Penpot MCP，就不进入 Penpot 工作流。
-> 此时技能目录里只剩 `penpot-setup`，会话首步会收到一条 durable 规则提醒：**必须拒绝设计请求，并引导用户配置**。配置好之后，14 个技能才会出现。
+> 此时技能目录里只剩 `penpot-setup`，会话首步会收到一条 durable 规则提醒：**必须拒绝设计请求，并引导用户配置**。配置好之后，14 个上游技能 + `penpot-polish` 才会出现。
 
 - **零运行时依赖**、无构建步骤、纯 ESM。`dsh plugin add` 不会触发 build 脚本审批。
 - **跟随上游**：`scripts/sync-upstream.mjs` 覆盖 `skills/ shared/ policies/ workflows/ prompts/ skills.json`，写 `UPSTREAM.json`；`--check` 落后即 `exit 1`。
@@ -141,7 +141,7 @@ chmod 600 ~/.dsh/penpot-ai-kit/config.json
 
 | 层 | 无可用 MCP | 有可用 MCP |
 |---|---|---|
-| 技能目录 | 只有 `penpot-setup` | 14 个上游技能 + `penpot-setup` |
+| 技能目录 | 只有 `penpot-setup` | 14 个上游技能 + `penpot-setup` + `penpot-polish`（16 个） |
 | `skill({name})` 加载 | 上游技能返回 unknown；`penpot-setup` 可加载 | 全部可加载 |
 | 会话首步 | 注入一次 durable `<EXTREMELY_IMPORTANT>`：不得执行任何 Penpot 设计操作，必须拒绝并引导配置 | 不注入 |
 | `penpot_kit_status` | `configured/connected=false`，带 `error` 与 `configPath` | `connected=true`，`toolCount>0`，`error=null` |
@@ -161,6 +161,47 @@ chmod 600 ~/.dsh/penpot-ai-kit/config.json
 ```
 
 `penpot-setup` 会调用 status、给出要写的文件路径、可粘贴的 JSON、`chmod 600`、重启与验证步骤。配置在宿主启动后才创建时，调用一次 status 会自动重新读取并尝试挂载（self-heal）。
+
+## 工作流门禁：不让 agent 直接开画
+
+MCP 可用时，插件会在会话首步注入一条 durable 规则（`penpot-ai-kit-workflow`）：
+
+1. 任何 Penpot 设计任务先 `skill({name:"penpot-router"})`，再加载路由到的技能；
+2. 不允许直接 `execute_code` 一次性生成或重做整个屏幕；按 section 构建，每段 `export_shape` 并真正看图；
+3. 声明完成前加载 `penpot-polish`，跑 `auditDesignTells.js`，P0 未清零不得交付；
+4. 如果目录里还没有 `penpot-*` 技能，先 `penpot_kit_status` 并让用户重启 DSH，不要盲画。
+
+### 这条规则来自一次真实会话
+
+分析了一份 24 turn 的 Penpot UI 会话（3527 行日志）：
+
+| 现象 | 数据 |
+|---|---|
+| 前 6 个 turn 没有加载任何 Penpot 技能，turn 7 才加载 `penpot-router` / `penpot-build-screen` | 6 turns 盲画 |
+| 技能加载前的工具调用 | 232 次 `execute_code`、100 次 `export_shape` |
+| 文本 width 涨到 `3.145e9`，阻塞 `saveVersion` / 自动保存 | 整个文件无法保存 |
+| 反复修 `clipContent` 裁切 | 276 个装饰 board + 41 个带投影 board |
+| 11/12px 文字绕过 14px 基线 | 多轮返工 |
+| 重建画板后卡片被重挂到 page root | 画布出现两套卡片 |
+
+结论不是“设计知识不够”，而是 **技能加载太晚 + 没有可执行的检查**。所以 v0.5.1-dsh.4 加了工作流提醒和 `penpot-polish`。
+
+### `penpot-polish`
+
+只读审计 → P0 修复 → 重新审计，最多 2 轮。审计脚本 `scripts/auditDesignTells.js` 直接粘进 `execute_code`，输出 `{pass, counts, findings, summary}`，上限 60 条（每个 id 最多 8 条示例）。
+
+| id | 级别 | 检查 |
+|---|---|---|
+| `absurd-geometry` | P0 | width/height < 1 或 > 10000（`3.145e9` 会阻塞保存） |
+| `board-no-layout` | P0 | board/frame 既没有 flex 也没有 grid |
+| `orphan-root` | P0 | 非屏幕尺寸的 shape 直接挂在 page root |
+| `clip-shadow` | P1 | 子树有投影，但容器 `clipContent=true` |
+| `tiny-text` | P1 | `fontSize` < 12px |
+| `raw-fill` / `pure-color` | P1 | 没有 token 的 fill / 纯 `#000000` `#FFFFFF` |
+| `off-grid-gap` | P1 | gap 不在 4px 网格 |
+| `mixed-radius` / `uniform-gap` / `equal-triplets` | P2 | 半径族、间距层级、三张等宽卡 |
+
+审计是只读的；修复仍然一次一个缺陷、修完重新审计。P0 未清零就停手并报告剩余项，不静默接受。
 
 ## 上游同步
 
@@ -193,7 +234,7 @@ node scripts/check-refs.mjs                 # 引用完整性（CI 也跑）
 node --test test/*.test.mjs
 ```
 
-覆盖：配置校验/缺失/权限、frontmatter（14 个真实文件 + 引号/数组/块序列边界）、门禁目录裁剪、`resourceBase` 与跨技能引用、`penpot_kit_status` 返回、durable 提醒只注入一次、bad URL、tools/change 失效、self-heal。
+覆盖：配置校验/缺失/权限、frontmatter（14 个真实文件 + 引号/数组/块序列边界）、门禁目录裁剪（16 个技能）、`resourceBase` 与跨技能引用、`penpot_kit_status` 返回、MCP 关闭/打开两种 durable 提醒且只注入一次、bad URL、tools/change 失效、self-heal、`auditDesignTells.js` 的 P0/P1/P2 检查与上限。
 
 `test/integration.test.mjs` 需要能 import `@deepseek-ai/*`；在普通 checkout 上自动 skip，在 Docker 验证镜像里跑真实嵌套挂载 + 真实 mcp-client：
 
@@ -217,6 +258,7 @@ lib/reminder.mjs              durable 首步提醒
 skills/ shared/ policies/     vendored 上游内容（逐字节一致）
 workflows/ prompts/ skills.json
 skills-local/penpot-setup/    本地 setup 技能（门禁关闭时唯一可见）
+skills-local/penpot-polish/   本地修复技能 + scripts/auditDesignTells.js
 scripts/sync-upstream.mjs     上游同步 / --check
 scripts/check-refs.mjs        引用完整性
 test/                         node:test 套件
@@ -230,6 +272,10 @@ cordis.patch.yml             dsh.bundle patch
 - `stdio` transport 支持配置，但默认验收路径是 `streamable-http`；远程 URL 的 token 建议放在 URL 或 `headers` 里，文件权限 0600。
 - `penpot-setup` 不会替用户写配置；它输出路径/样例/验证方法，写入由用户完成（避免把 token 写进项目或会话）。
 - 上游 `templates/ docs/ evals/` 未 vendored（技能正文不引用它们；`check-refs` 会持续守住这一点）。
+
+## 设计借鉴
+
+`penpot-polish` 的“先审计再修、按影响排序、最多 2 轮”和 `auditDesignTells.js` 的可计数规则，参考了 [nexu-io/open-design](https://github.com/nexu-io/open-design) 的 `taste-skill`（MIT）、`impeccable-design-polish`、`redesign-skill`（MIT）与 `web-design-guidelines`（MIT）。代码与措辞为本仓库重写，只保留可迁移的检查项；没有拷贝其大段文本。
 
 ## License
 

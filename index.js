@@ -26,7 +26,7 @@
 
 import { createMcpGate } from './lib/gate.mjs'
 import { providerPaths, PenpotKitSkillProvider, SETUP_SKILL_NAME } from './lib/provider.mjs'
-import { registerGateReminder } from './lib/reminder.mjs'
+import { registerGateReminder, registerWorkflowReminder } from './lib/reminder.mjs'
 import { resolveConfigPath } from './lib/config.mjs'
 
 export const name = 'dsh-penpot-ai-kit-plugin'
@@ -160,6 +160,7 @@ export async function apply(ctx, config = {}) {
 
   registerStatusTool(ctx, gate)
   registerGateReminder(ctx, gate)
+  registerWorkflowReminder(ctx, gate)
 
   let lastCount = gate.toolCount()
   ctx.on('tools/change', () => {
@@ -193,7 +194,7 @@ export { parseFrontmatter, toSkillFields } from './lib/frontmatter.mjs'
 export { loadConfig, validateConfig, resolveConfigPath, defaultConfigPath, CONFIG_ENV } from './lib/config.mjs'
 export { createMcpGate } from './lib/gate.mjs'
 export { PenpotKitSkillProvider, providerPaths, rewriteSkillRelativePaths, SETUP_SKILL_NAME } from './lib/provider.mjs'
-export { renderGateReminder, GATE_SOURCE_KIND } from './lib/reminder.mjs'
+export { renderGateReminder, renderWorkflowReminder, GATE_SOURCE_KIND, WORKFLOW_SOURCE_KIND } from './lib/reminder.mjs'
 
 /** Absolute path to the vendored kit root (contains skills/, shared/, …). */
 export { PACKAGE_ROOT } from './lib/provider.mjs'

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { apply, STATUS_TOOL_NAME, GATE_SOURCE_KIND, gateFor } from '../index.js'
+import { apply, STATUS_TOOL_NAME, GATE_SOURCE_KIND, WORKFLOW_SOURCE_KIND, gateFor } from '../index.js'
 import { VALID_CONFIG, callTool, createFakeContext, makeTempDir, mcpTool } from './helpers.mjs'
 
 function withTempConfig(t, config) {
@@ -36,6 +36,7 @@ test('missing config: gate closed, only penpot-setup, status explains the path',
   assert.match(text, /不得执行任何 Penpot 设计操作/)
   assert.match(text, /penpot_kit_status/)
   assert.match(text, /penpot-setup/)
+  assert.doesNotMatch(text, /penpot-polish/)
 
   // The same durable message is present next step: no duplicate injection.
   const again = await harness.preStep({
@@ -49,15 +50,16 @@ test('missing config: gate closed, only penpot-setup, status explains the path',
   assert.equal(again.messages.length, 0)
 })
 
-test('configured + existing tools: gate open, all 15 skills, no reminder', async (t) => {
+test('configured + existing tools: gate open, all 16 skills, workflow reminder', async (t) => {
   const temp = withTempConfig(t, VALID_CONFIG)
   const harness = createFakeContext({ toolSchemas: [mcpTool('execute_code'), mcpTool('export_shape')] })
   await apply(harness.ctx, { configPath: temp.configPath })
   assert.equal(gateFor(harness.ctx).state, 'reused')
 
   const list = await harness.state.provider.list()
-  assert.equal(list.length, 15)
+  assert.equal(list.length, 16)
   assert.ok(list.some(skill => skill.name === 'penpot-audit-tokens'))
+  assert.ok(list.some(skill => skill.name === 'penpot-polish'))
 
   const status = await callTool(harness, STATUS_TOOL_NAME)
   assert.equal(status.configured, true)
@@ -66,7 +68,23 @@ test('configured + existing tools: gate open, all 15 skills, no reminder', async
   assert.equal(status.error, null)
 
   const decision = await harness.preStep()
-  assert.equal(decision.messages.length, 0)
+  assert.equal(decision.messages.length, 1)
+  const text = decision.messages[0].content[0].text
+  assert.match(text, /penpot-router/)
+  assert.match(text, /penpot-build-screen/)
+  assert.match(text, /penpot-polish/)
+  assert.match(text, /execute_code/)
+  assert.match(text, /export_shape/)
+
+  const again = await harness.preStep({
+    agent: {
+      session: {
+        events: [{ type: 'user/message', data: { source: { kind: WORKFLOW_SOURCE_KIND } }, seq: 7 }],
+        surface: { nodes: [7] },
+      },
+    },
+  })
+  assert.equal(again.messages.length, 0)
 })
 
 test('bad URL: status reports the failure and the catalog stays gated', async (t) => {
@@ -115,7 +133,7 @@ test('tools/change re-evaluates the gate and invalidates the catalog', async (t)
   await harness.emit('tools/change')
 
   assert.ok(harness.state.invalidations > before)
-  assert.equal((await harness.state.provider.list()).length, 15)
+  assert.equal((await harness.state.provider.list()).length, 16)
 })
 
 test('apply fails loudly only when the required host services are absent', async () => {

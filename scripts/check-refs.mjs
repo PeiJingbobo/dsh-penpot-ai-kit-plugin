@@ -44,18 +44,24 @@ const relativeToPackage = file => relative(packageRoot, file).split(sep).join('/
 
 function skillDirFor(relPath) {
   const parts = relPath.split('/')
-  return parts[0] === 'skills' && parts.length >= 3 ? parts.slice(0, 2).join('/') : null
+  return (parts[0] === 'skills' || parts[0] === 'skills-local') && parts.length >= 3
+    ? parts.slice(0, 2).join('/')
+    : null
 }
 
 // Skill-local references appear in shared/ and workflows/ docs too, addressed
 // by their skill-directory name (`references/…`, `scripts/…`). Resolve those
 // against every skill directory, not just the containing file's.
 const allSkillDirs = (() => {
-  const root = join(packageRoot, 'skills')
-  if (!existsSync(root)) return []
-  return readdirSync(root, { withFileTypes: true })
-    .filter(entry => entry.isDirectory())
-    .map(entry => `skills/${entry.name}`)
+  const dirs = []
+  for (const base of ['skills', 'skills-local']) {
+    const root = join(packageRoot, base)
+    if (!existsSync(root)) continue
+    for (const entry of readdirSync(root, { withFileTypes: true })) {
+      if (entry.isDirectory()) dirs.push(`${base}/${entry.name}`)
+    }
+  }
+  return dirs
 })()
 
 function checkReference(rawRef, containingFile) {

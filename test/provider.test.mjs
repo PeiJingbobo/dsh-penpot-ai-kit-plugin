@@ -12,6 +12,7 @@ import {
 import { parseFrontmatter } from '../lib/frontmatter.mjs'
 
 const PATHS = providerPaths()
+const LOCAL_NAMES = new Set([SETUP_SKILL_NAME, 'penpot-polish'])
 const config = { providerName: 'test-provider', source: 'test', rank: 650, ...PATHS }
 
 function fakeGate(available) {
@@ -34,17 +35,18 @@ test('closed gate exposes exactly penpot-setup', async () => {
   }
 })
 
-test('open gate exposes the 14 upstream skills plus penpot-setup', async () => {
+test('open gate exposes the 14 upstream skills plus local skills', async () => {
   const provider = makeProvider(true)
   try {
     const list = await provider.list()
-    assert.equal(list.length, 15)
+    assert.equal(list.length, 16)
     const names = list.map(skill => skill.name)
     assert.equal(names[0], 'penpot-anti-slop')
     assert.ok(names.includes('penpot-audit-tokens'))
     assert.ok(names.includes('penpot-router'))
     assert.ok(names.includes(SETUP_SKILL_NAME))
-    assert.equal(list.filter(skill => skill.source === 'test').length, 15)
+    assert.ok(names.includes('penpot-polish'))
+    assert.equal(list.filter(skill => skill.source === 'test').length, 16)
   } finally {
     await provider.dispose()
   }
@@ -74,7 +76,7 @@ test('vendored skills publish the kit root as resourceBase so shared/ resolves',
   const provider = makeProvider(true)
   try {
     const list = await provider.list()
-    for (const summary of list.filter(skill => skill.name !== SETUP_SKILL_NAME)) {
+    for (const summary of list.filter(skill => !LOCAL_NAMES.has(skill.name))) {
       const skill = await provider.get(summary)
       assert.equal(skill.resourceBase.kind, 'directory')
       assert.equal(skill.resourceBase.path, PACKAGE_ROOT, `${skill.name} resourceBase`)
@@ -122,4 +124,22 @@ test('every vendored skill frontmatter is parseable and descriptions are non-emp
   assert.ok(parsed.data.description.length > 100)
   assert.ok(Array.isArray(parsed.data.requires))
   assert.equal(parsed.data.requires.length, 6)
+})
+
+
+test('penpot-polish is served as a local skill with its audit script', async () => {
+  const provider = makeProvider(true)
+  try {
+    const list = await provider.list()
+    const summary = list.find(skill => skill.name === 'penpot-polish')
+    assert.ok(summary, 'penpot-polish is in the catalog')
+    const skill = await provider.get(summary)
+    assert.equal(skill.resourceBase.kind, 'directory')
+    assert.equal(skill.resourceBase.path, join(PATHS.localSkillsDir, 'penpot-polish'))
+    assert.match(skill.content, /auditDesignTells\.js/)
+    assert.match(skill.content, /P0/)
+    assert.ok(existsSync(join(PATHS.localSkillsDir, 'penpot-polish', 'scripts', 'auditDesignTells.js')))
+  } finally {
+    await provider.dispose()
+  }
 })

@@ -53,7 +53,7 @@ test('nested MCP mount: status, catalog, resourceBase and a read-only call', { s
   assert.ok(status.toolCount >= 3, `toolCount=${status.toolCount}`)
 
   const skills = await ctx.skills.list()
-  assert.equal(skills.length, 15)
+  assert.equal(skills.length, 16)
   assert.ok(skills.some(skill => skill.name === 'penpot-router'))
 
   const audit = await ctx.skills.get('penpot-audit-tokens')
