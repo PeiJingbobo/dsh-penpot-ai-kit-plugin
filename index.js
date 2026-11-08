@@ -33,6 +33,12 @@ export const name = 'dsh-penpot-ai-kit'
 export const inject = ['skills', 'tools']
 
 export const STATUS_TOOL_NAME = 'penpot_kit_status'
+
+/** Per-context gate handle for tests and inspection (never returned from apply). */
+const gates = new WeakMap()
+export function gateFor(ctx) {
+  return gates.get(ctx)
+}
 export const DEFAULT_PROVIDER_NAME = 'dsh-penpot-ai-kit'
 export const DEFAULT_RANK = 650
 export const DEFAULT_SOURCE = 'penpot-ai-kit'
@@ -177,7 +183,10 @@ export async function apply(ctx, config = {}) {
     ctx.logger?.warn?.(`dsh-penpot-ai-kit: serving only "${SETUP_SKILL_NAME}" until a Penpot MCP config exists at ${status.configPath}`)
   }
 
-  return { gate, status: () => gate.status() }
+  // Cordis collects a plugin apply()'s return value as an effect. Returning a
+  // plain object makes activation fail with `TypeError: Invalid effect`, so
+  // apply must resolve to undefined and expose the gate out of band.
+  gates.set(ctx, gate)
 }
 
 export { parseFrontmatter, toSkillFields } from './lib/frontmatter.mjs'

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { apply, STATUS_TOOL_NAME, GATE_SOURCE_KIND } from '../index.js'
+import { apply, STATUS_TOOL_NAME, GATE_SOURCE_KIND, gateFor } from '../index.js'
 import { VALID_CONFIG, callTool, createFakeContext, makeTempDir, mcpTool } from './helpers.mjs'
 
 function withTempConfig(t, config) {
@@ -14,7 +14,8 @@ test('missing config: gate closed, only penpot-setup, status explains the path',
   const temp = withTempConfig(t)
   const harness = createFakeContext()
   const result = await apply(harness.ctx, { configPath: temp.configPath })
-  assert.ok(result.gate)
+  assert.equal(result, undefined, 'apply must not return an effect-shaped value')
+  assert.ok(gateFor(harness.ctx))
 
   const list = await harness.state.provider.list()
   assert.deepEqual(list.map(skill => skill.name), ['penpot-setup'])
@@ -51,8 +52,8 @@ test('missing config: gate closed, only penpot-setup, status explains the path',
 test('configured + existing tools: gate open, all 15 skills, no reminder', async (t) => {
   const temp = withTempConfig(t, VALID_CONFIG)
   const harness = createFakeContext({ toolSchemas: [mcpTool('execute_code'), mcpTool('export_shape')] })
-  const result = await apply(harness.ctx, { configPath: temp.configPath })
-  assert.equal(result.gate.state, 'reused')
+  await apply(harness.ctx, { configPath: temp.configPath })
+  assert.equal(gateFor(harness.ctx).state, 'reused')
 
   const list = await harness.state.provider.list()
   assert.equal(list.length, 15)
@@ -73,8 +74,8 @@ test('bad URL: status reports the failure and the catalog stays gated', async (t
   const harness = createFakeContext({
     plugin: async () => { throw new Error('mcp-client(penpot): initial connection failed: fetch failed') },
   })
-  const result = await apply(harness.ctx, { configPath: temp.configPath, importMcp: async () => ({ name: 'fake' }) })
-  assert.equal(result.gate.state, 'failed')
+  await apply(harness.ctx, { configPath: temp.configPath, importMcp: async () => ({ name: 'fake' }) })
+  assert.equal(gateFor(harness.ctx).state, 'failed')
 
   const status = await callTool(harness, STATUS_TOOL_NAME)
   assert.equal(status.configured, true)

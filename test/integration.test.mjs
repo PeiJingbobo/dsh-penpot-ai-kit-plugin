@@ -27,7 +27,8 @@ const skip = dsh === null ? 'DSH packages are not installed in this environment'
 
 test('nested MCP mount: status, catalog, resourceBase and a read-only call', { skip }, async (t) => {
   const { startFakePenpot } = await import('./fixtures/fake-penpot.mjs')
-  const { apply, STATUS_TOOL_NAME, PACKAGE_ROOT } = await import(process.env.PENPOT_AI_KIT_ENTRY ?? '../index.js')
+  const pluginModule = await import(process.env.PENPOT_AI_KIT_ENTRY ?? '../index.js')
+  const { STATUS_TOOL_NAME, PACKAGE_ROOT } = pluginModule
   const server = await startFakePenpot(0)
   const temp = makeTempDir()
   temp.write({ ...VALID_CONFIG, mcp: { ...VALID_CONFIG.mcp, url: server.url } }, { mode: 0o600 })
@@ -42,8 +43,9 @@ test('nested MCP mount: status, catalog, resourceBase and a read-only call', { s
   await ctx.plugin(dsh.ToolRuntime)
   await ctx.plugin(dsh.SkillRegistry)
 
-  const result = await apply(ctx, { configPath: temp.configPath, connectTimeoutMs: 5000 })
-  assert.equal(result.gate.state, 'mounted')
+  // Mount exactly like the loader does: activation semantics matter (an
+  // apply() return value is collected as an effect).
+  await ctx.plugin(pluginModule, { configPath: temp.configPath, connectTimeoutMs: 5000 })
 
   const status = await ctx.tools.get(STATUS_TOOL_NAME).execute({}, { signal: new AbortController().signal })
   assert.equal(status.configured, true)
@@ -71,7 +73,8 @@ test('nested MCP mount: status, catalog, resourceBase and a read-only call', { s
 })
 
 test('bad URL against the real mcp-client: status errors, catalog gated', { skip }, async () => {
-  const { apply, STATUS_TOOL_NAME } = await import(process.env.PENPOT_AI_KIT_ENTRY ?? '../index.js')
+  const pluginModule = await import(process.env.PENPOT_AI_KIT_ENTRY ?? '../index.js')
+  const { STATUS_TOOL_NAME } = pluginModule
   const temp = makeTempDir()
   temp.write({ ...VALID_CONFIG, mcp: { ...VALID_CONFIG.mcp, url: 'http://127.0.0.1:1/mcp' } }, { mode: 0o600 })
   const ctx = new dsh.Context()
@@ -79,7 +82,7 @@ test('bad URL against the real mcp-client: status errors, catalog gated', { skip
     await ctx.plugin(dsh.SystemPrompt)
     await ctx.plugin(dsh.ToolRuntime)
     await ctx.plugin(dsh.SkillRegistry)
-    await apply(ctx, { configPath: temp.configPath, connectTimeoutMs: 5000 })
+    await ctx.plugin(pluginModule, { configPath: temp.configPath, connectTimeoutMs: 5000 })
 
     const status = await ctx.tools.get(STATUS_TOOL_NAME).execute({}, { signal: new AbortController().signal })
     assert.equal(status.configured, true)

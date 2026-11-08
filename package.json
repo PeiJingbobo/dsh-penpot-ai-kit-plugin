@@ -1,6 +1,6 @@
 {
   "name": "dsh-penpot-ai-kit",
-  "version": "0.5.1-dsh.1",
+  "version": "0.5.1-dsh.2",
   "description": "DeepSeek Harness bundle that serves the penpot/penpot-ai-kit skill library as native DSH skills, gated behind a verified Penpot MCP connection",
   "license": "MIT",
   "type": "module",
