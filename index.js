@@ -1,5 +1,5 @@
 /**
- * dsh-penpot-ai-kit — serve penpot/penpot-ai-kit as native DSH skills, behind a
+ * dsh-penpot-ai-kit-plugin — serve penpot/penpot-ai-kit as native DSH skills, behind a
  * verified Penpot MCP gate.
  *
  * A DeepSeek Harness bundle (`dsh.bundle`). It contributes:
@@ -29,7 +29,7 @@ import { providerPaths, PenpotKitSkillProvider, SETUP_SKILL_NAME } from './lib/p
 import { registerGateReminder } from './lib/reminder.mjs'
 import { resolveConfigPath } from './lib/config.mjs'
 
-export const name = 'dsh-penpot-ai-kit'
+export const name = 'dsh-penpot-ai-kit-plugin'
 export const inject = ['skills', 'tools']
 
 export const STATUS_TOOL_NAME = 'penpot_kit_status'
@@ -39,7 +39,7 @@ const gates = new WeakMap()
 export function gateFor(ctx) {
   return gates.get(ctx)
 }
-export const DEFAULT_PROVIDER_NAME = 'dsh-penpot-ai-kit'
+export const DEFAULT_PROVIDER_NAME = 'dsh-penpot-ai-kit-plugin'
 export const DEFAULT_RANK = 650
 export const DEFAULT_SOURCE = 'penpot-ai-kit'
 export const DEFAULT_CONNECT_TIMEOUT_MS = 10_000
@@ -50,20 +50,20 @@ const RESERVED_PROVIDER = 'runtime'
 function resolvePluginConfig(config = {}) {
   const providerName = config.providerName ?? DEFAULT_PROVIDER_NAME
   if (typeof providerName !== 'string' || providerName.length === 0) {
-    throw new Error('dsh-penpot-ai-kit: providerName must be a non-empty string')
+    throw new Error('dsh-penpot-ai-kit-plugin: providerName must be a non-empty string')
   }
   if (providerName === RESERVED_PROVIDER) {
-    throw new Error(`dsh-penpot-ai-kit: providerName "${RESERVED_PROVIDER}" is reserved`)
+    throw new Error(`dsh-penpot-ai-kit-plugin: providerName "${RESERVED_PROVIDER}" is reserved`)
   }
   const rank = config.rank ?? DEFAULT_RANK
-  if (!Number.isFinite(rank)) throw new Error('dsh-penpot-ai-kit: rank must be a finite number')
+  if (!Number.isFinite(rank)) throw new Error('dsh-penpot-ai-kit-plugin: rank must be a finite number')
   const source = config.source ?? DEFAULT_SOURCE
   if (typeof source !== 'string' || source.length === 0) {
-    throw new Error('dsh-penpot-ai-kit: source must be a non-empty string')
+    throw new Error('dsh-penpot-ai-kit-plugin: source must be a non-empty string')
   }
   const connectTimeoutMs = config.connectTimeoutMs ?? DEFAULT_CONNECT_TIMEOUT_MS
   if (!Number.isFinite(connectTimeoutMs) || connectTimeoutMs < 0) {
-    throw new Error('dsh-penpot-ai-kit: connectTimeoutMs must be a non-negative number')
+    throw new Error('dsh-penpot-ai-kit-plugin: connectTimeoutMs must be a non-negative number')
   }
   const paths = providerPaths(config)
   return {
@@ -82,7 +82,7 @@ export function registerStatusTool(ctx, gate) {
   const statusTool = {
     name: STATUS_TOOL_NAME,
     description:
-      'Report whether the Penpot MCP connection for the dsh-penpot-ai-kit plugin is configured and usable. '
+      'Report whether the Penpot MCP connection for the dsh-penpot-ai-kit-plugin plugin is configured and usable. '
       + 'Returns the config file path, the expected server name, the live mcp__<serverName>__* tool count, '
       + 'and the last error. Call this before any Penpot work and whenever the user asks to set up Penpot.',
     parameters: { type: 'object', properties: {}, additionalProperties: false },
@@ -125,10 +125,10 @@ export function registerStatusTool(ctx, gate) {
  */
 export async function apply(ctx, config = {}) {
   if (typeof ctx?.skills?.registerProvider !== 'function') {
-    throw new Error('dsh-penpot-ai-kit requires the `skills` service (dsh-skill); add @deepseek-ai/dsh-base or equivalent to the profile')
+    throw new Error('dsh-penpot-ai-kit-plugin requires the `skills` service (dsh-skill); add @deepseek-ai/dsh-base or equivalent to the profile')
   }
   if (typeof ctx?.tools?.register !== 'function') {
-    throw new Error('dsh-penpot-ai-kit requires the `tools` service (dsh-tools)')
+    throw new Error('dsh-penpot-ai-kit-plugin requires the `tools` service (dsh-tools)')
   }
 
   const resolved = resolvePluginConfig(config)
@@ -177,10 +177,10 @@ export async function apply(ctx, config = {}) {
 
   const status = gate.status()
   ctx.logger?.info?.(
-    `dsh-penpot-ai-kit: gate ${status.connected ? 'open' : 'closed'} (${status.toolCount} mcp__${status.serverName}__* tools; config ${status.configPath})`,
+    `dsh-penpot-ai-kit-plugin: gate ${status.connected ? 'open' : 'closed'} (${status.toolCount} mcp__${status.serverName}__* tools; config ${status.configPath})`,
   )
   if (!status.configured) {
-    ctx.logger?.warn?.(`dsh-penpot-ai-kit: serving only "${SETUP_SKILL_NAME}" until a Penpot MCP config exists at ${status.configPath}`)
+    ctx.logger?.warn?.(`dsh-penpot-ai-kit-plugin: serving only "${SETUP_SKILL_NAME}" until a Penpot MCP config exists at ${status.configPath}`)
   }
 
   // Cordis collects a plugin apply()'s return value as an effect. Returning a

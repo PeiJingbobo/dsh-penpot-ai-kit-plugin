@@ -1,4 +1,4 @@
-# dsh-penpot-ai-kit
+# dsh-penpot-ai-kit-plugin
 
 [![Sync upstream & release](https://github.com/PeiJingbobo/dsh-penpot-ai-kit-plugin/actions/workflows/sync-and-release.yml/badge.svg)](https://github.com/PeiJingbobo/dsh-penpot-ai-kit-plugin/actions/workflows/sync-and-release.yml)
 [![Upstream](https://img.shields.io/badge/upstream-penpot%2Fpenpot--ai--kit-8b5cf6)](https://github.com/penpot/penpot-ai-kit)
@@ -73,7 +73,7 @@ dsh plugin add github:PeiJingbobo/dsh-penpot-ai-kit-plugin
 
 # 或者下载 Release 的 tarball
 gh release download --repo PeiJingbobo/dsh-penpot-ai-kit-plugin -p '*.tgz'
-dsh plugin add ./dsh-penpot-ai-kit-*.tgz
+dsh plugin add ./dsh-penpot-ai-kit-plugin-*.tgz
 
 # 或本地目录（开发）
 dsh plugin add /path/to/dsh-penpot-ai-kit-plugin
@@ -82,8 +82,8 @@ dsh plugin add /path/to/dsh-penpot-ai-kit-plugin
 启动后日志：
 
 ```
-dsh-penpot-ai-kit: gate closed (0 mcp__penpot__* tools; config ~/.dsh/penpot-ai-kit/config.json)
-dsh-penpot-ai-kit: serving only "penpot-setup" until a Penpot MCP config exists at ...
+dsh-penpot-ai-kit-plugin: gate closed (0 mcp__penpot__* tools; config ~/.dsh/penpot-ai-kit/config.json)
+dsh-penpot-ai-kit-plugin: serving only "penpot-setup" until a Penpot MCP config exists at ...
 ```
 
 ## 配置

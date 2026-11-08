@@ -1,4 +1,4 @@
-# Sync-and-release pipeline for dsh-penpot-ai-kit.
+# Sync-and-release pipeline for dsh-penpot-ai-kit-plugin.
 #
 # Triggers:
 #   - push to main: re-sync the vendored snapshot, test, package, release if the
@@ -99,7 +99,7 @@ jobs:
           **Install**
 
           \`\`\`sh
-          dsh plugin add ./dsh-penpot-ai-kit-${{ steps.meta.outputs.version }}.tgz
+          dsh plugin add ./dsh-penpot-ai-kit-plugin-${{ steps.meta.outputs.version }}.tgz
           \`\`\`
 
           The bundle serves the 14 Penpot design skills only after a Penpot MCP connection is verified; see the README for the config file format and the setup skill.
