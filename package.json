@@ -1,0 +1,57 @@
+{
+  "name": "dsh-penpot-ai-kit",
+  "version": "0.5.1-dsh.1",
+  "description": "DeepSeek Harness bundle that serves the penpot/penpot-ai-kit skill library as native DSH skills, gated behind a verified Penpot MCP connection",
+  "license": "MIT",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "files": [
+    "index.js",
+    "lib/",
+    "scripts/",
+    "cordis.patch.yml",
+    "skills/",
+    "skills-local/",
+    "shared/",
+    "policies/",
+    "workflows/",
+    "prompts/",
+    "skills.json",
+    "UPSTREAM.json",
+    "LICENSE",
+    "LICENSE-PENPOT",
+    "README.md"
+  ],
+  "scripts": {
+    "sync": "node scripts/sync-upstream.mjs",
+    "sync:check": "node scripts/sync-upstream.mjs --check",
+    "check:refs": "node scripts/check-refs.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/PeiJingbobo/dsh-penpot-ai-kit-plugin"
+  },
+  "keywords": [
+    "deepseek-harness",
+    "dsh-plugin",
+    "dsh-bundle",
+    "penpot",
+    "mcp",
+    "skills",
+    "design-system",
+    "penpot-ai-kit"
+  ]
+}
